@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 contract CarGo {
     uint256 constant DEPOSIT = 0.0001 ether;
     uint256 constant PENALTY = 0.00001 ether;
-    address constant SERVICE_PROVIDER =0xd187E168bb36C41d767435Eb61E45ba08E29fC86;
+    address constant SERVICE_PROVIDER =0xfe0738A845DCEc5166378e1b4a735709DF57e0e3;
         //0xd187E168bb36C41d767435Eb61E45ba08E29fC86;
 
     mapping(uint256 => uint256) carBalance;
@@ -13,7 +13,7 @@ contract CarGo {
     mapping(uint256 => uint256) extraTime;
     mapping(uint256 => uint256) extraTimeCharge;
     mapping(uint256 => address) carOwner;
-    mapping(uint256 => address) carRenter; // this links the renter with the car
+    mapping(uint256 => address) carRenter; 
     mapping(uint256 => address) carAdress;
     mapping(uint256 => bool) carOccupied;
     mapping(uint256 => string) accessToken;
@@ -21,11 +21,6 @@ contract CarGo {
     // retner attributes
     mapping(address => uint256) renterBalance;
     mapping(address => bool) renterOccupied;
-
-    // event RegisterCar(uint256 _carID, uint256 _price, uint256 _extraPrice);
-    // event RegisterRenter(address _address);
-    // event InitBooking(address _address);
-    // event EndBooking(address _address, uint256 _endTime);
 
     modifier checkDeposit() {
         require(msg.value >= DEPOSIT, "Not enough Ether provided as deposit");
@@ -63,7 +58,6 @@ contract CarGo {
         extraTimeCharge[_carID] = _extraPrice;
         carOccupied[_carID] = false;
         carAdress[_carID] = _carAdress;
-        //emit RegisterCar(_carID, _price, _extraPrice);
     }
 
     // Register retner on-chain
@@ -78,7 +72,6 @@ contract CarGo {
             "NOT SIGNED BY SERVICE PROVIDER"
         );
         renterBalance[msg.sender] = msg.value;
-        //emit RegisterRenter(msg.sender);
     }
 
     function setAccessToken(
@@ -100,7 +93,6 @@ contract CarGo {
         return accessToken[_carID];
     }
 
-    // Check that car is not in use, car signed the beginTime and that the correct driver
     function beginBooking(
         bytes32 _hash,
         uint8 _v,
@@ -141,7 +133,7 @@ contract CarGo {
             "TIME WAS NOT SIGNED BY THE CAR"
         );
 
-        uint256 fee = carPrice[_carID] * (startTime[_carID] - _endTime);
+        uint256 fee = carPrice[_carID] * (_endTime - startTime[_carID]);
 
         if (extraTime[_carID] > 0) {
             fee += extraTime[_carID] * extraTimeCharge[_carID];
@@ -151,7 +143,6 @@ contract CarGo {
         carOccupied[_carID] = false;
         renterBalance[msg.sender] -= fee;
         renterOccupied[msg.sender] = false;
-        //emit EndBooking(msg.sender, _endTime);
     }
 
     function cancelBooking(uint256 _carID) external {

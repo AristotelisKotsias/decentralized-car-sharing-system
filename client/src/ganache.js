@@ -1,8 +1,3 @@
-const config = require('../../configs/config')
-require('dotenv').config({ path: '../../.env' })
-
-var input = process.argv[2]
-var url
 // if (input == "rinkeby") {
 //   url = config.rinkeby.url;
 //   var contractAddress = require("../../build/addresses/rinkeby.json")[
@@ -19,17 +14,14 @@ var url
 //     "contract_address"
 //   ];
 // }
-
-console.log()
-
+require('dotenv').config({ path: '../../.env' })
 const EthCrypto = require('eth-crypto')
 const ecies = require('eth-ecies')
 const Web3 = require('web3')
-//var web3 = new Web3(url);
 let web3 = new Web3('http://127.0.0.1:7545')
 
 const { abi } = require('./abi/CarGo.json')
-const contractAddress = '0xfc70d13587F99551c8F7921Edf2dfBB1d3c29069'
+const contractAddress = '0x2471daeed669f28fAb9ddFB48580870b3C7A5092'
 const contract = new web3.eth.Contract(abi, contractAddress)
 const provider = {}
 const owner = {}
@@ -107,6 +99,7 @@ async function logic(n) {
     EthCrypto.hash.keccak256(beginTime),
   )
 
+  // ATrenter cid that is used to retrieve it from IPFS
   let cid = 'QmQL6Tb4bTEvAbm8fNbAeeUk9X7MYmae4APShqHNhd3A5c'
   switch (n) {
     case 1:
@@ -123,8 +116,8 @@ async function logic(n) {
         .registerCar(
           car.address,
           carId,
-          0.00001,
-          0.00001,
+          1,
+          1,
           EthCrypto.hash.keccak256(carId),
           vrsCarId.r,
           vrsCarId.s,

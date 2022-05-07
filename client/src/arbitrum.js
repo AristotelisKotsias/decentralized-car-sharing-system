@@ -77,7 +77,7 @@ async function logic(n) {
     JSON.stringify(payload2),
   )
 
-  // 3. Car signs the starting time and sends it to the renter, allows access to the car
+  // Car signs the starting time and sends it to the renter, allows access to the car
   const d = new Date()
   const beginTime = 1 //d.getTime(); // time in milliseconds
 
