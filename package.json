@@ -1,5 +1,15 @@
 {
+  "name" : "thesis",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "compile:evm": "truffle compile",
+    "compile:ovm": "truffle compile --config truffle-config.ovm.js",
+    "migrate:evm": "truffle migrate",
+    "migrate:ovm": "truffle migrate --skip-dry-run --config truffle-config.ovm.js --network $npm_config_network"
+  },
   "dependencies": {
+    "@eth-optimism/ganache-core": "^2.12.3",
     "dotenv": "^8.6.0",
     "ipfs-core": "^0.14.2",
     "mocha": "^9.2.2",

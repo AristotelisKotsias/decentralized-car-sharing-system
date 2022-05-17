@@ -3,9 +3,9 @@ pragma solidity ^0.8.9;
 
 contract CarGo {
     uint256 constant DEPOSIT = 0.0001 ether;
-    uint256 constant PENALTY = 0.00001 ether;
-    address constant SERVICE_PROVIDER =0xfe0738A845DCEc5166378e1b4a735709DF57e0e3;
-        //0xd187E168bb36C41d767435Eb61E45ba08E29fC86;
+    uint256 constant PENALTY = 0.0000001 ether;
+    address constant SERVICE_PROVIDER =//0xfe0738A845DCEc5166378e1b4a735709DF57e0e3;
+        0xd187E168bb36C41d767435Eb61E45ba08E29fC86;
 
     mapping(uint256 => uint256) carBalance;
     mapping(uint256 => uint256) startTime;

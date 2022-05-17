@@ -35,10 +35,19 @@ module.exports = {
         return new HDWalletProvider(
           (privateKeys = process.env.PROVIDER_PKEY),
           process.env.ARBITRUM_URL,
-          //config.arbitrum.url,
         )
       },
       network_id: 421611,
+    },
+    optimism: {
+      network_id: 69,
+      chain_id: 69,
+      provider: function () {
+        return new HDWalletProvider(
+          (privateKeys = process.env.PROVIDER_PKEY),
+          process.env.KOVAN_URL,
+        )
+      },
     },
   },
 
