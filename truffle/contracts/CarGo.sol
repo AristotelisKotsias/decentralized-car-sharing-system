@@ -2,10 +2,10 @@
 pragma solidity ^0.8.9;
 
 contract CarGo {
-    uint256 constant DEPOSIT = 0.0001 ether;
-    uint256 constant PENALTY = 0.0000001 ether;
-    address constant SERVICE_PROVIDER =//0xfe0738A845DCEc5166378e1b4a735709DF57e0e3;
-        0xd187E168bb36C41d767435Eb61E45ba08E29fC86;
+    uint256 constant DEPOSIT = 100000000000000;
+    uint256 constant PENALTY = 1000000;
+    address constant SERVICE_PROVIDER =0xfe0738A845DCEc5166378e1b4a735709DF57e0e3;
+        //0xd187E168bb36C41d767435Eb61E45ba08E29fC86;
 
     mapping(uint256 => uint256) carBalance;
     mapping(uint256 => uint256) startTime;
@@ -134,6 +134,7 @@ contract CarGo {
         );
 
         uint256 fee = carPrice[_carID] * (_endTime - startTime[_carID]);
+        
 
         if (extraTime[_carID] > 0) {
             fee += extraTime[_carID] * extraTimeCharge[_carID];
@@ -145,10 +146,18 @@ contract CarGo {
         renterOccupied[msg.sender] = false;
     }
 
+    function getTime(uint256 _carID)
+        external
+        view
+        returns (uint256)
+    {
+        return startTime[_carID];
+    }
+
     function cancelBooking(uint256 _carID) external {
         if (msg.sender == carOwner[_carID]) {
             require(
-                startTime[_carID] <= 0,
+                startTime[_carID] > 0,
                 "Ride has started, you can't cancel it"
             );
             carRenter[_carID] = address(0);

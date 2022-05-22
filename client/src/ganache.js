@@ -21,7 +21,7 @@ const Web3 = require('web3')
 let web3 = new Web3('http://127.0.0.1:7545')
 
 const { abi } = require('./abi/CarGo.json')
-const contractAddress = '0x2471daeed669f28fAb9ddFB48580870b3C7A5092'
+const contractAddress = '0x2492085b408c275305fBb178F9C63E0ED61E1506'
 const contract = new web3.eth.Contract(abi, contractAddress)
 const provider = {}
 const owner = {}
@@ -228,7 +228,7 @@ async function logic(n) {
       break
     case 5:
       // -----------------------------------------Owner sets extra time------------------------------------------------------------------------------------------
-      let extraTime = 5 // convert it to time units
+      let extraTime = 1 // convert it to time units
       await contract.methods.setExtraTime(carId, extraTime).send({
         from: owner.address,
         gas: 3000000,
@@ -250,7 +250,7 @@ async function logic(n) {
       await contract.methods
         .endBooking(
           carId,
-          0,
+          endTime,
           EthCrypto.hash.keccak256(endTime),
           vrsEndTime.v,
           vrsEndTime.r,
@@ -265,7 +265,7 @@ async function logic(n) {
       // -----------------------------------Cancel booking-------------------------------------------------------------------------------------------------------
       //Renter cancels booking on chain
       await contract.methods.cancelBooking(carId).send({
-        from: renter.address,
+        from: owner.address,
         gas: 3000000,
       })
 
@@ -284,6 +284,9 @@ async function logic(n) {
       break
     default:
       console.log('No case selected')
+    case 9:
+      var time = await contract.methods.getTime(carId).call()
+      console.log(time)
   }
 }
 
@@ -297,6 +300,6 @@ async function main() {
    * 7: cancel booking
    * 8: withdraw
    */
-  logic(8).catch(console.error)
+  logic(6).catch(console.error)
 }
 main().catch(console.error)
