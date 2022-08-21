@@ -1,313 +1,277 @@
-require('dotenv').config({ path: '../../.env' })
-const EthCrypto = require('eth-crypto')
-//const ecies = require('eth-ecies')
-const Web3 = require('web3')
-let web3 = new Web3('http://127.0.0.1:7545')
+require("dotenv").config({ path: "../../.env" });
+const EthCrypto = require("eth-crypto");
+const Web3 = require("web3");
+let web3 = new Web3("http://127.0.0.1:7545");
+const prompt = require("prompt-async");
 
-const { abi } = require('./abi/CarGo.json')
-const contractAddress = '0xeAEB8f3188E835d5fBc3cBB1BCeeA57609960ae3'
-const contract = new web3.eth.Contract(abi, contractAddress)
-const provider = {}
-const owner = {}
-const renter = {}
-const car = {}
-const carId = new Date().getTime() // unique id for each car
+const { abi } = require("./abi/CarGo.json");
+const contractAddress = "0x914A3D9e47B2b6e013180823126ddf1B3E697DFc";
+const contract = new web3.eth.Contract(abi, contractAddress);
+const provider = {};
+const owner = {};
+const renter = {};
+const car = {};
 
-// web3.eth.net
-//   .isListening()
-//   .then(() => console.log('is connected'))
-//   .catch((e) => console.log('Wow. Something went wrong: ' + e))
+provider.privateKey = process.env.GANACHE_PROVIDER_PKEY;
+provider.publicKey = EthCrypto.publicKeyByPrivateKey(provider.privateKey);
+provider.address = EthCrypto.publicKey.toAddress(provider.publicKey);
 
-// web3.eth.net.getNetworkType().then(console.log)
+owner.privateKey = process.env.GANACHE_OWNER_PKEY;
+owner.publicKey = EthCrypto.publicKeyByPrivateKey(owner.privateKey);
+owner.address = EthCrypto.publicKey.toAddress(owner.publicKey);
 
-provider.privateKey = process.env.GANACHE_PROVIDER_PKEY
-provider.publicKey = EthCrypto.publicKeyByPrivateKey(provider.privateKey)
-provider.address = EthCrypto.publicKey.toAddress(provider.publicKey)
+renter.privateKey = process.env.GANACHE_RENTER_PKEY;
+renter.publicKey = EthCrypto.publicKeyByPrivateKey(renter.privateKey);
+renter.address = EthCrypto.publicKey.toAddress(renter.publicKey);
 
-owner.privateKey = process.env.GANACHE_OWNER_PKEY
-owner.publicKey = EthCrypto.publicKeyByPrivateKey(owner.privateKey)
-owner.address = EthCrypto.publicKey.toAddress(owner.publicKey)
+car.privateKey = process.env.CAR_PKEY;
+car.publicKey = EthCrypto.publicKeyByPrivateKey(car.privateKey);
+car.address = EthCrypto.publicKey.toAddress(car.publicKey);
 
-renter.privateKey = process.env.GANACHE_RENTER_PKEY
-renter.publicKey = EthCrypto.publicKeyByPrivateKey(renter.privateKey)
-renter.address = EthCrypto.publicKey.toAddress(renter.publicKey)
+const carLocation = "cordinates";
+const carPlate = "IAK 2134";
+const carModel = "Toyota";
+const pricePerMinute = "$0.0001";
+const extraTimeCharge = "$0.001";
+const bookingDetails =
+  carLocation +
+  " " +
+  carPlate +
+  " " +
+  carModel +
+  " " +
+  pricePerMinute +
+  " " +
+  extraTimeCharge;
 
-car.privateKey = process.env.CAR_PKEY
-car.publicKey = EthCrypto.publicKeyByPrivateKey(car.privateKey)
-car.address = EthCrypto.publicKey.toAddress(car.publicKey)
+function signDocument(privateKey, document) {
+  return EthCrypto.sign(privateKey, EthCrypto.hash.keccak256(document));
+}
 
-//print owner's and renter's private/public keys
-//console.table([owner, renter, provider, car])
+function encryptDocument(publicKey, payload) {
+  return EthCrypto.encryptWithPublicKey(publicKey, JSON.stringify(payload));
+}
 
-async function logic(n) {
-  //Owner signs the booking details
-  //const hashedCertRenter = "hashed"
-  const carLocation = 'cordinates'
-  const carPlate = 'IAK 2134'
-  const carModel = 'Toyota'
-  const pricePerMinute = '$0.0001'
-  const extraTime = '$0.001'
-  const bookingDetails =
-    carLocation +
-    ' ' +
-    carPlate +
-    ' ' +
-    carModel +
-    ' ' +
-    pricePerMinute +
-    ' ' +
-    extraTime
+async function decryptDocument(privateKey, payload) {
+  return JSON.parse(await EthCrypto.decryptWithPrivateKey(privateKey, payload));
+}
 
+var seconds;
+var carId = new Date().getTime(); // unique id for each car
+var vrsCarId;
+var vrsrenterID;
+var ATcar;
+var ATrenter;
+var signedTime;
+
+// ATrenter cid that is used to retrieve it from IPFS
+let cid = "QmQL6Tb4bTEvAbm8fNbAeeUk9X7MYmae4APShqHNhd3A5c";
+
+async function usersRegistration() {
+  const signedCarId = signDocument(provider.privateKey, carId); // string
+  //retrieve v, r, s from signature in order to send them to the smart contract
+  vrsCarId = EthCrypto.vrs.fromString(signedCarId);
+  await contract.methods
+    .registerCar(
+      car.address,
+      carId,
+      1,
+      1,
+      EthCrypto.hash.keccak256(carId),
+      vrsCarId.r,
+      vrsCarId.s,
+      vrsCarId.v
+    )
+    .send({
+      from: owner.address,
+      value: "1000000000000000000", // 1 ether
+      gas: 3000000,
+    });
+
+  const renterID = renter.address;
+  const signedRenterID = signDocument(provider.privateKey, renterID);
+  vrsrenterID = EthCrypto.vrs.fromString(signedRenterID);
+
+  await contract.methods
+    .registerRenter(
+      EthCrypto.hash.keccak256(renterID),
+      vrsrenterID.r,
+      vrsrenterID.s,
+      vrsrenterID.v
+    )
+    .send({
+      from: renter.address,
+      value: "1000000000000000000", // 1 ether
+      gas: 3000000,
+    });
+}
+
+async function generateAccessToken() {
   // 1. Owner first signs the booking details
-  const signedBD = EthCrypto.sign(
-    owner.privateKey,
-    EthCrypto.hash.keccak256(bookingDetails),
-  )
-
+  const signedBD = signDocument(owner.privateKey, bookingDetails);
   const payload = {
     message: bookingDetails,
     signature: signedBD,
-  }
+  };
 
   // 2. Owner generates ATcar with car's public key
-  let ATcar = await EthCrypto.encryptWithPublicKey(
-    car.publicKey,
-    JSON.stringify(payload),
-  )
+  ATcar = await encryptDocument(car.publicKey, payload);
 
   // 3. Owner generates ATrenter with renter's public key
   const payload2 = {
     message: bookingDetails,
     ATcar: ATcar,
-  }
+  };
+  ATrenter = await encryptDocument(renter.publicKey, payload2);
+  //console.log(ATrenter);
+  var maxRentingTime = 3 * 24 * 60 * 60; // This is an example (3 days)
+  await contract.methods
+    .setAccessToken(carId, cid, renter.address, maxRentingTime)
+    .send({
+      from: owner.address,
+      gas: 3000000,
+    });
 
-  const ATrenter = await EthCrypto.encryptWithPublicKey(
-    renter.publicKey,
-    JSON.stringify(payload2),
-  )
-  console.log(ATrenter)
-  // 3. Car signs the starting time and sends it to the renter, allows access to the car
-  const d = new Date()
-  const beginTime = 1 // = Math.round(Date.now() / 1000) // time in milliseconds
+  //console.log('ATrenter is: ', ATrenter)
+  //let fromBCtoken = await contract.methods.getAccessToken(carId).call();
+  //console.log(fromBCtoken);
+}
 
-  const signedTime = EthCrypto.sign(
-    car.privateKey,
-    EthCrypto.hash.keccak256(beginTime),
-  )
+async function carFunctions() {
+  // 1. Car decrypts the ATcar that received from renter through close range communication
+  console.log("ATcar is: ", ATcar);
+  const decryptedPayloadcar = await decryptDocument(car.privateKey, ATcar);
+  // 2. Car verifies that the owner signed the BD
+  const signerIsOwner = EthCrypto.recover(
+    decryptedPayloadcar.signature, // generated signature
+    EthCrypto.hash.keccak256(decryptedPayloadcar.message) // signed message hash
+  );
 
-  const seconds = Math.round(Date.now() / 1000)
+  if (signerIsOwner === owner.address) console.log("Owner signed the BD");
+  else console.log("Owner DIDNT sign the BD");
+}
 
-  // ATrenter cid that is used to retrieve it from IPFS
-  let cid = 'QmQL6Tb4bTEvAbm8fNbAeeUk9X7MYmae4APShqHNhd3A5c'
+async function initBooking() {
+  // 1. Renter first verifies that the car signed the time
+  seconds = Math.round(Date.now() / 1000);
+  console.log("seconds is: ", seconds);
+  signedTime = signDocument(car.privateKey, seconds);
 
-  switch (n) {
-    case 1:
-      // --------------------------------------------------------Car and Renter Registration---------------------------------------------------------------------
-      // Service provider signs the car and renter ID
-      const signedCarId = EthCrypto.sign(
-        provider.privateKey,
-        EthCrypto.hash.keccak256(carId),
+  const signerIsCar = EthCrypto.recover(
+    signedTime, // generated signature
+    EthCrypto.hash.keccak256(seconds) // signed message hash
+  );
+
+  const vrsBeginTime = EthCrypto.vrs.fromString(signedTime);
+
+  if (signerIsCar === car.address) {
+    console.log("Car signed the begin time");
+
+    await contract.methods
+      .beginBooking(
+        EthCrypto.hash.keccak256(seconds),
+        vrsBeginTime.v,
+        vrsBeginTime.r,
+        vrsBeginTime.s,
+        carId,
+        seconds
       )
-      //retrieve v, r, s from signature in order to send them to the smart contract
-      const vrsCarId = EthCrypto.vrs.fromString(signedCarId)
-
-      await contract.methods
-        .registerCar(
-          car.address,
-          carId,
-          1,
-          1,
-          EthCrypto.hash.keccak256(carId),
-          vrsCarId.r,
-          vrsCarId.s,
-          vrsCarId.v,
-        )
-        .send({
-          from: owner.address,
-          value: '1000000000000000000', // 1 ether
-          gas: 3000000,
-        })
-
-      const renterID = renter.address
-      const signedRenterID = EthCrypto.sign(
-        provider.privateKey,
-        EthCrypto.hash.keccak256(renterID),
-      )
-      const vrsrenterID = EthCrypto.vrs.fromString(signedRenterID)
-      await contract.methods
-        .registerRenter(
-          EthCrypto.hash.keccak256(renterID),
-          vrsrenterID.r,
-          vrsrenterID.s,
-          vrsrenterID.v,
-        )
-        .send({
-          from: renter.address,
-          value: '1000000000000000000', // 1 ether
-          gas: 3000000,
-        })
-      break
-    case 2:
-      // ------------------------------------------------------Owner stores on chain the access token-----------------------------------------------
-      await contract.methods
-        .setAccessToken(carId, cid, renter.address, 10)
-        .send({
-          from: owner.address,
-          gas: 3000000,
-        })
-
-      // //console.log('ATrenter is: ', ATrenter)
-      let fromBCtoken = await contract.methods.getAccessToken(carId).call()
-      console.log(fromBCtoken)
-
-      // //decrypt access token
-      // const result = EthCrypto.cipher.parse(fromBCtoken);
-
-      // const decryptedd = await EthCrypto.decryptWithPrivateKey(
-      //     renter.privateKey,
-      //     result
-      // );
-
-      // const decryptedPayloadd = JSON.parse(decryptedd);
-      // console.log('FROM BC: ', decryptedPayloadd)
-      break
-    case 3:
-      // --------------------------------------------------------Car functions-------------------------------------------
-      // 1. Car decrypts the ATcar that received from renter through close range communication
-      // const ecryptedATcar = EthCrypto.cipher.stringify(ATcar)
-      // console.log(ecryptedATcar)
-      // const encrypedObjectcar = EthCrypto.cipher.parse(ecryptedATcar)
-
-      const decryptedATcar = await EthCrypto.decryptWithPrivateKey(
-        car.privateKey,
-        ATcar,
-      )
-      const decryptedPayloadcar = JSON.parse(decryptedATcar)
-      //   // console.log('ATcar message is: ', decryptedPayloadcar.message)
-      //   // console.log('ATcar signature is: ', decryptedPayloadcar.signature)
-      //   // console.log('ATcar hash of BD is: ', EthCrypto.hash.keccak256(bookingDetails))
-
-      // 2. Car verifies that the owner signed the BD
-      const signerIsOwner = EthCrypto.recover(
-        decryptedPayloadcar.signature, // generated signature
-        EthCrypto.hash.keccak256(decryptedPayloadcar.message), // signed message hash
-      )
-
-      if (signerIsOwner == owner.address) console.log('Owner signed the BD')
-      else console.log('Owner DIDNT sign the BD')
-
-      break
-    case 4:
-      // -----------------------------------------Renter begins booking------------
-      // 1. Renter first verifies that car signed the time
-      const signerIsCar = EthCrypto.recover(
-        signedTime, // generated signature
-        EthCrypto.hash.keccak256(beginTime), // signed message hash
-      )
-
-      const vrsBeginTime = EthCrypto.vrs.fromString(signedTime)
-
-      if (signerIsCar == car.address) {
-        console.log('Car signed the begin time')
-
-        await contract.methods
-          .beginBooking(
-            EthCrypto.hash.keccak256(beginTime),
-            vrsBeginTime.v,
-            vrsBeginTime.r,
-            vrsBeginTime.s,
-            carId,
-            beginTime,
-          )
-          .send({
-            from: renter.address,
-            gas: 3000000,
-          })
-      } else {
-        console.log('Car DIDNT sign the begin time')
-      }
-      break
-    case 5:
-      // -----------------------------------------Owner sets extra time------------------------------------------------------------------------------------------
-      let extraTime = 1 // convert it to time units
-      await contract.methods.setExtraTime(carId, extraTime).send({
-        from: owner.address,
-        gas: 3000000,
-      })
-      break
-    case 6:
-      // -----------------------------------------Renter ends booking------------------------------------------------------------------------------------------
-      // In a normal booking, the renter expresses his desire to end the booking to the car
-      let endTime = 5 //= Math.round(Date.now() / 1000) // time in secs
-
-      const signedEndTime = EthCrypto.sign(
-        car.privateKey,
-        EthCrypto.hash.keccak256(endTime),
-      )
-
-      const vrsEndTime = EthCrypto.vrs.fromString(signedEndTime)
-
-      //Renter ends booking on chain
-      await contract.methods
-        .endBooking(
-          carId,
-          endTime,
-          EthCrypto.hash.keccak256(endTime),
-          vrsEndTime.v,
-          vrsEndTime.r,
-          vrsEndTime.s,
-        )
-        .send({
-          from: renter.address,
-          gas: 3000000,
-        })
-      break
-    case 7:
-      // -----------------------------------Cancel booking-------------------------------------------------------------------------------------------------------
-      //Renter cancels booking on chain
-      await contract.methods.cancelBooking(carId).send({
-        from: owner.address,
-        gas: 3000000,
-      })
-
-      //Owner ends booking on chain
-      // await contract.methods.cancelBooking(carId).send({
-      //   from: owner.address,
-      //   gas: 3000000,
-      // })
-      break
-    case 8:
-      // --------------------------------Withdraw money------------------------------------------------------------------------------------------------------
-      await contract.methods.withdrawMoneyToOwner(carId).send({
-        from: owner.address,
-        gas: 300000,
-      })
-      break
-    case 9:
-      var time = await contract.methods.getTime(carId).call()
-      console.log(time)
-      break
-    case 10:
-      await contract.methods.withdrawMoneyToRenter().send({
+      .send({
         from: renter.address,
-        gas: 300000,
-      })
-      break
-    default:
-      console.log('No case selected')
+        gas: 3000000,
+      });
+  } else {
+    console.log("Car DIDNT sign the begin time");
   }
 }
 
-async function main() {
-  /* 1: registration
-   * 2: access token generation
-   * 3: car functions
-   * 4: begin booking
-   * 5: set extra time
-   * 6: end booking
-   * 7: cancel booking
-   * 8: withdraw
-   */
-  logic(10).catch(console.error)
+async function extraTime() {
+  let extraTime = 1; // convert it to time units
+  await contract.methods.setExtraTime(carId, extraTime).send({
+    from: renter.address,
+    gas: 3000000,
+  });
 }
-main().catch(console.error)
+
+async function endBooking() {
+  seconds = Math.round(Date.now() / 1000);
+  //The car signes the end time
+  const signedEndTime = signDocument(car.privateKey, seconds);
+  const vrsEndTime = EthCrypto.vrs.fromString(signedEndTime);
+
+  //Renter ends booking on chain
+  await contract.methods
+    .endBooking(
+      carId,
+      seconds,
+      EthCrypto.hash.keccak256(seconds),
+      vrsEndTime.v,
+      vrsEndTime.r,
+      vrsEndTime.s
+    )
+    .send({
+      from: renter.address,
+      gas: 3000000,
+    });
+}
+
+async function cancelBooking() {
+  //Renter cancels booking on chain
+  await contract.methods.cancelBooking(carId).send({
+    from: renter.address,
+    gas: 3000000,
+  });
+}
+
+async function withdrawMoney() {
+  //Owner withdraws money from contract
+  await contract.methods.withdrawMoneyToOwner(carId).send({
+    from: owner.address,
+    gas: 300000,
+  });
+
+  //Renter withdraws money from contract
+  await contract.methods.withdrawMoneyToRenter().send({
+    from: renter.address,
+    gas: 300000,
+  });
+}
+
+async function main_async() {
+  prompt.start();
+  while (true) {
+    const { option } = await prompt.get(["option"]);
+
+    if (option === "1") {
+      usersRegistration();
+    } else if (option === "2") {
+      generateAccessToken();
+    } else if (option === "3") {
+      carFunctions();
+    } else if (option === "4") {
+      initBooking();
+    } else if (option === "5") {
+      extraTime();
+    } else if (option === "6") {
+      endBooking();
+    } else if (option === "7") {
+      cancelBooking();
+    } else if (option === "8") {
+      withdrawMoney();
+    } else break;
+  }
+}
+
+async function error_handling_async() {
+  try {
+    console.log(
+      "Chose: \n 1 for registration \n 2 for AT generation \n 3 for car functions" +
+        "\n 4 for begin booking \n 5 for setting extra time \n 6 for ending the booking \n 7 for cancelling the booking \n 8 for withdrawing funds"
+    );
+    await main_async();
+  } catch (error) {
+    console.error("An error occurred: ", error);
+  }
+}
+
+error_handling_async();
