@@ -2,9 +2,10 @@ require("dotenv").config({ path: "../../.env" });
 const EthCrypto = require("eth-crypto");
 const Web3 = require("web3");
 let web3 = new Web3("http://127.0.0.1:7545");
+const prompt = require("prompt-async");
 
 const { abi } = require("./abi/CarGo.json");
-const contractAddress = "0x19dc92e25a21F4d6eAc32A8029c86Dde4851b67b";
+const contractAddress = "0x914A3D9e47B2b6e013180823126ddf1B3E697DFc";
 const contract = new web3.eth.Contract(abi, contractAddress);
 const provider = {};
 const owner = {};
@@ -38,7 +39,7 @@ const carLocation = "cordinates";
 const carPlate = "IAK 2134";
 const carModel = "Toyota";
 const pricePerMinute = "$0.0001";
-const extraTime = "$0.001";
+const extraTimeCharge = "$0.001";
 const bookingDetails =
   carLocation +
   " " +
@@ -48,7 +49,7 @@ const bookingDetails =
   " " +
   pricePerMinute +
   " " +
-  extraTime;
+  extraTimeCharge;
 
 function signDocument(privateKey, document) {
   return EthCrypto.sign(privateKey, EthCrypto.hash.keccak256(document));
@@ -58,8 +59,8 @@ function encryptDocument(publicKey, payload) {
   return EthCrypto.encryptWithPublicKey(publicKey, JSON.stringify(payload));
 }
 
-function decryptDocument(privateKey, payload) {
-  return JSON.parse(EthCrypto.decryptWithPrivateKey(privateKey, payload));
+async function decryptDocument(privateKey, payload) {
+  return JSON.parse(await EthCrypto.decryptWithPrivateKey(privateKey, payload));
 }
 
 // 3. Car signs the starting time and sends it to the renter, allows access to the car
@@ -70,23 +71,21 @@ function decryptDocument(privateKey, payload) {
 //   EthCrypto.hash.keccak256(beginTime),
 // )
 
-var seconds = Math.round(Date.now() / 1000);
-var carId = "1"; //new Date().getTime() // unique id for each car
+var seconds;
+var carId = new Date().getTime(); // unique id for each car
 var vrsCarId;
 var vrsrenterID;
 var ATcar;
 var ATrenter;
+var signedTime;
 
 // ATrenter cid that is used to retrieve it from IPFS
 let cid = "QmQL6Tb4bTEvAbm8fNbAeeUk9X7MYmae4APShqHNhd3A5c";
 
 async function usersRegistration() {
-  carId = "2";
   const signedCarId = signDocument(provider.privateKey, carId); // string
   //retrieve v, r, s from signature in order to send them to the smart contract
   vrsCarId = EthCrypto.vrs.fromString(signedCarId);
-  console.log("HELLO", cid);
-
   await contract.methods
     .registerCar(
       car.address,
@@ -139,7 +138,7 @@ async function generateAccessToken() {
     ATcar: ATcar,
   };
   ATrenter = await encryptDocument(renter.publicKey, payload2);
-  console.log(ATrenter);
+  //console.log(ATrenter);
   var maxRentingTime = 3 * 24 * 60 * 60; // This is an example (3 days)
   await contract.methods
     .setAccessToken(carId, cid, renter.address, maxRentingTime)
@@ -149,26 +148,14 @@ async function generateAccessToken() {
     });
 
   //console.log('ATrenter is: ', ATrenter)
-  let fromBCtoken = await contract.methods.getAccessToken(carId).call();
-  console.log(fromBCtoken);
+  //let fromBCtoken = await contract.methods.getAccessToken(carId).call();
+  //console.log(fromBCtoken);
 }
 
 async function carFunctions() {
-  // --------------------------------------------------------Car functions-------------------------------------------
   // 1. Car decrypts the ATcar that received from renter through close range communication
-  // const ecryptedATcar = EthCrypto.cipher.stringify(ATcar)
-  // console.log(ecryptedATcar)
-  // const encrypedObjectcar = EthCrypto.cipher.parse(ecryptedATcar)
-
-  const decryptedATcar = await EthCrypto.decryptWithPrivateKey(
-    car.privateKey,
-    ATcar
-  );
-  const decryptedPayloadcar = JSON.parse(decryptedATcar);
-  //   // console.log('ATcar message is: ', decryptedPayloadcar.message)
-  //   // console.log('ATcar signature is: ', decryptedPayloadcar.signature)
-  //   // console.log('ATcar hash of BD is: ', EthCrypto.hash.keccak256(bookingDetails))
-
+  console.log("ATcar is: ", ATcar);
+  const decryptedPayloadcar = await decryptDocument(car.privateKey, ATcar);
   // 2. Car verifies that the owner signed the BD
   const signerIsOwner = EthCrypto.recover(
     decryptedPayloadcar.signature, // generated signature
@@ -179,14 +166,94 @@ async function carFunctions() {
   else console.log("Owner DIDNT sign the BD");
 }
 
-const prompt = require("prompt-async");
+async function initBooking() {
+  // 1. Renter first verifies that the car signed the time
+  seconds = Math.round(Date.now() / 1000);
+  console.log("seconds is: ", seconds);
+  signedTime = signDocument(car.privateKey, seconds);
 
-async function example_async() {
-  // Available only with `prompt-async`!
-  // Start the prompt.
+  const signerIsCar = EthCrypto.recover(
+    signedTime, // generated signature
+    EthCrypto.hash.keccak256(seconds) // signed message hash
+  );
+
+  const vrsBeginTime = EthCrypto.vrs.fromString(signedTime);
+
+  if (signerIsCar === car.address) {
+    console.log("Car signed the begin time");
+
+    await contract.methods
+      .beginBooking(
+        EthCrypto.hash.keccak256(seconds),
+        vrsBeginTime.v,
+        vrsBeginTime.r,
+        vrsBeginTime.s,
+        carId,
+        seconds
+      )
+      .send({
+        from: renter.address,
+        gas: 3000000,
+      });
+  } else {
+    console.log("Car DIDNT sign the begin time");
+  }
+}
+
+async function extraTime() {
+  let extraTime = 1; // convert it to time units
+  await contract.methods.setExtraTime(carId, extraTime).send({
+    from: renter.address,
+    gas: 3000000,
+  });
+}
+
+async function endBooking() {
+  seconds = Math.round(Date.now() / 1000);
+  //The car signes the end time
+  const signedEndTime = signDocument(car.privateKey, seconds);
+  const vrsEndTime = EthCrypto.vrs.fromString(signedEndTime);
+
+  //Renter ends booking on chain
+  await contract.methods
+    .endBooking(
+      carId,
+      seconds,
+      EthCrypto.hash.keccak256(seconds),
+      vrsEndTime.v,
+      vrsEndTime.r,
+      vrsEndTime.s
+    )
+    .send({
+      from: renter.address,
+      gas: 3000000,
+    });
+}
+
+async function cancelBooking() {
+  //Renter cancels booking on chain
+  await contract.methods.cancelBooking(carId).send({
+    from: renter.address,
+    gas: 3000000,
+  });
+}
+
+async function withdrawMoney() {
+  //Owner withdraws money from contract
+  await contract.methods.withdrawMoneyToOwner(carId).send({
+    from: owner.address,
+    gas: 300000,
+  });
+
+  //Renter withdraws money from contract
+  await contract.methods.withdrawMoneyToRenter().send({
+    from: renter.address,
+    gas: 300000,
+  });
+}
+
+async function main_async() {
   prompt.start();
-
-  // Get two properties from the user: the `username` and `email`.
   while (true) {
     const { option } = await prompt.get(["option"]);
 
@@ -196,19 +263,27 @@ async function example_async() {
       generateAccessToken();
     } else if (option === "3") {
       carFunctions();
-    }
-    // Log the results.
-    // console.log("Command-line input received: ");
-    // console.log(`  username: ${option},`);
+    } else if (option === "4") {
+      initBooking();
+    } else if (option === "5") {
+      extraTime();
+    } else if (option === "6") {
+      endBooking();
+    } else if (option === "7") {
+      cancelBooking();
+    } else if (option === "8") {
+      withdrawMoney();
+    } else break;
   }
 }
 
 async function error_handling_async() {
   try {
     console.log(
-      "Chose: \n 1 for car registration \n 2 for AT generation \n 3 for car functions"
+      "Chose: \n 1 for car registration \n 2 for AT generation \n 3 for car functions" +
+        "\n 4 for begin booking \n 5 for setting extra time \n 6 for ending the booking \n 7 for cancelling the booking \n 8 for withdrawing funds"
     );
-    await example_async();
+    await main_async();
   } catch (error) {
     console.error("An error occurred: ", error);
   }

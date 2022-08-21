@@ -114,7 +114,7 @@ contract CarGo {
     }
 
     function setExtraTime(uint256 _carID, uint256 _extraTime) external {
-        require(msg.sender == carOwner[_carID], "YOU ARE NOT THE OWNER");
+        require(msg.sender == carRenter[_carID], "YOU ARE NOT THE CURRENT RENTER");
         extraTime[_carID] = _extraTime;
     }
 
