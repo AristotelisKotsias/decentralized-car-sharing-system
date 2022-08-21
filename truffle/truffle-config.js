@@ -53,14 +53,14 @@ module.exports = {
 
   mocha: {
     // https://github.com/cgewecke/eth-gas-reporter
-    reporter: 'eth-gas-reporter',
-    reporterOptions: {
-      currency: 'EUR',
-      gasPrice: 10,
-      //coinmarketcap: "d95b9953-dadf-4136-93b0-f7bd310ecb7a",
-      showTimeSpent: true,
-      excludeContracts: ['Migrations'],
-    },
+    // reporter: 'eth-gas-reporter',
+    // reporterOptions: {
+    //   currency: 'EUR',
+    //   gasPrice: 10,
+    //   //coinmarketcap: "d95b9953-dadf-4136-93b0-f7bd310ecb7a",
+    //   showTimeSpent: true,
+    //   excludeContracts: ['Migrations'],
+    // },
   },
 
   // Configure compilers

@@ -5,7 +5,7 @@ const EthCrypto = require('eth-crypto')
 const Web3 = require('web3')
 let web3 = new Web3(process.env.ARBITRUM_URL)
 const { abi } = require('./abi/CarGo.json')
-const contractAddress = '0x767d342f22B85c50a7041CC77b25943348145d12'
+const contractAddress = '0x30b76bcCd8aC436b6360A61f984012E12C6b30aD'
 const contract = new web3.eth.Contract(abi, contractAddress)
 const provider = {}
 const owner = {}
@@ -86,7 +86,8 @@ async function logic(n) {
     EthCrypto.hash.keccak256(beginTime),
   )
 
-  let cid = 'QmQL6Tb4bTEvAbm8fNbAeeUk9X7MYmae4APShqHNhd3A5c'
+  // IPFS cid that can be used by the renter to retrieve the booking details
+  let cid = 'Qmf4fotCcsB4iqkgLLaGvDxPxFxzmTnBCETHmmVwFJw6bJ'
 
   switch (n) {
     case 1:
@@ -339,7 +340,7 @@ async function logic(n) {
       const myData6 = contract.methods
         .endBooking(
           carId,
-          0,
+          endTime,
           EthCrypto.hash.keccak256(endTime),
           vrsEndTime.v,
           vrsEndTime.r,
@@ -441,6 +442,35 @@ async function logic(n) {
       let money = await contract.methods.getMoney().call()
       console.log(money)
       break
+    case 10:
+      // --------------------------------Withdraw money------------------------------------------------------------------------------------------------------
+      const myData10 = contract.methods.withdrawMoneyToRenter().encodeABI()
+
+      // transaction count
+      const transactionCount10 = await web3.eth.getTransactionCount(
+        renter.address,
+      )
+      // Transaction Object
+      const txObject10 = {
+        nonce: web3.utils.toHex(transactionCount10),
+        to: contractAddress,
+        value: web3.utils.toHex(web3.utils.toWei('0', 'ether')),
+        gasLimit: web3.utils.toHex(2100000),
+        gasPrice: web3.utils.toHex(web3.utils.toWei('100', 'gwei')),
+        data: myData10,
+      }
+      const privateKeyBuffer10 = Buffer.from(renter.privateKey, 'hex')
+      const tx10 = new Tx.Transaction(txObject10, { common: custom_common })
+
+      tx10.sign(privateKeyBuffer10)
+
+      const serializedTx10 = tx10.serialize()
+      const raw10 = '0x' + serializedTx10.toString('hex')
+
+      // Broadcast the transaction
+      const transaction10 = await web3.eth.sendSignedTransaction(raw10)
+      console.log(transaction10)
+      break
     default:
       console.log('No case selected')
   }
@@ -457,6 +487,6 @@ async function main() {
    * 8: withdraw
    * 9: getters
    */
-  logic(8).catch(console.error)
+  logic(10).catch(console.error)
 }
 main().catch(console.error)

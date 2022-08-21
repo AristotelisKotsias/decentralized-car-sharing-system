@@ -3,9 +3,9 @@ var Tx = require('ethereumjs-tx')
 var _Common = require('ethereumjs-common')
 const EthCrypto = require('eth-crypto')
 const Web3 = require('web3')
-let web3 = new Web3(process.env.KOVAN_URL)
+let web3 = new Web3(process.env.RINKEBY_URL)
 const { abi } = require('./abi/CarGo.json')
-const contractAddress = '0x7e6e3dc7B0840D3637E43D118147Aa16ab3BCbd9'
+const contractAddress = '0x2581BCE1Edb559edde6077dec3a2B0848477Bf72'
 const contract = new web3.eth.Contract(abi, contractAddress)
 const provider = {}
 const owner = {}
@@ -33,9 +33,9 @@ const Common = _Common.default
 const custom_common = Common.forCustomChain(
   'mainnet',
   {
-    name: 'optimism',
-    networkId: 69,
-    chainId: 69,
+    name: 'rinkeby',
+    networkId: 4,
+    chainId: 4,
   },
   'petersburg',
 )
@@ -44,15 +44,6 @@ const custom_common = Common.forCustomChain(
 //console.table([owner, renter, provider, car])
 
 async function logic(n) {
-  //   web3.eth.net
-  //     .isListening()
-  //     .then(() => console.log('is connected'))
-  //     .catch((e) => console.log('Wow. Something went wrong: ' + e))
-
-  //   web3.eth.net.getNetworkType().then(console.log)
-
-  //   console.log('\n')
-
   const carLocation = 'cordinates'
   const reservationTime = '3hrs'
   const carPlate = 'IAK 2134'
@@ -95,6 +86,7 @@ async function logic(n) {
     EthCrypto.hash.keccak256(beginTime),
   )
 
+  // IPFS cid that can be used by the renter to retrieve the booking details
   let cid = 'Qmf4fotCcsB4iqkgLLaGvDxPxFxzmTnBCETHmmVwFJw6bJ'
 
   switch (n) {
@@ -302,7 +294,7 @@ async function logic(n) {
       break
     case 5:
       // -----------------------------------------Owner sets extra time------------------------------------------------------------------------------------------
-      let extraTime = 5 // convert it to time units
+      let extraTime = 1 // convert it to time units
       const myData4 = contract.methods
         .setExtraTime(carId, extraTime)
         .encodeABI()
@@ -452,7 +444,7 @@ async function logic(n) {
       break
     case 10:
       // --------------------------------Withdraw money------------------------------------------------------------------------------------------------------
-      const myData10 = contract.methods.withdrawMoneyToRenter().encodeABI()
+      const myData10 = contract.methods.withdrawMoneyToRenter(carId).encodeABI()
 
       // transaction count
       const transactionCount10 = await web3.eth.getTransactionCount(
@@ -495,6 +487,6 @@ async function main() {
    * 8: withdraw
    * 9: getters
    */
-  logic(7).catch(console.error)
+  logic(10).catch(console.error)
 }
 main().catch(console.error)

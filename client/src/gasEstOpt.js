@@ -10,7 +10,7 @@ async function main() {
   // web3.eth.net.getNetworkType().then(console.log);
 
   let txHash =
-    '0x5687b6f0c6bf1b8f83a8b186fbc08938fdaf997284a773a75e6acf0815be5776'
+    '0xca7dae4256de0ac79b9aeec24dc8316fc7172910c34f3159dfd570a16c9c2416'
   web3.eth.getTransactionReceipt(txHash).then(console.log)
 }
 

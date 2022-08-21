@@ -1,33 +1,17 @@
-// if (input == "rinkeby") {
-//   url = config.rinkeby.url;
-//   var contractAddress = require("../../build/addresses/rinkeby.json")[
-//     "contract_address"
-//   ];
-// } else if (input == "arbitrum") {
-//   var contractAddress = require("../../build/addresses/arbitrum.json")[
-//     "contract_address"
-//   ];
-//   url = config.arbitrum.url;
-// } else {
-//   url = config.ganache.url;
-//   var contractAddress = require("../../build/addresses/ganache.json")[
-//     "contract_address"
-//   ];
-// }
 require('dotenv').config({ path: '../../.env' })
 const EthCrypto = require('eth-crypto')
-const ecies = require('eth-ecies')
+//const ecies = require('eth-ecies')
 const Web3 = require('web3')
 let web3 = new Web3('http://127.0.0.1:7545')
 
 const { abi } = require('./abi/CarGo.json')
-const contractAddress = '0x2492085b408c275305fBb178F9C63E0ED61E1506'
+const contractAddress = '0xeAEB8f3188E835d5fBc3cBB1BCeeA57609960ae3'
 const contract = new web3.eth.Contract(abi, contractAddress)
 const provider = {}
 const owner = {}
 const renter = {}
 const car = {}
-const carId = '123'
+const carId = new Date().getTime() // unique id for each car
 
 // web3.eth.net
 //   .isListening()
@@ -56,11 +40,23 @@ car.address = EthCrypto.publicKey.toAddress(car.publicKey)
 //console.table([owner, renter, provider, car])
 
 async function logic(n) {
-  // Owner signs the booking details
+  //Owner signs the booking details
+  //const hashedCertRenter = "hashed"
   const carLocation = 'cordinates'
-  const reservationTime = '3hrs'
   const carPlate = 'IAK 2134'
-  const bookingDetails = carLocation + ' ' + reservationTime + ' ' + carPlate
+  const carModel = 'Toyota'
+  const pricePerMinute = '$0.0001'
+  const extraTime = '$0.001'
+  const bookingDetails =
+    carLocation +
+    ' ' +
+    carPlate +
+    ' ' +
+    carModel +
+    ' ' +
+    pricePerMinute +
+    ' ' +
+    extraTime
 
   // 1. Owner first signs the booking details
   const signedBD = EthCrypto.sign(
@@ -89,18 +85,21 @@ async function logic(n) {
     renter.publicKey,
     JSON.stringify(payload2),
   )
-
+  console.log(ATrenter)
   // 3. Car signs the starting time and sends it to the renter, allows access to the car
   const d = new Date()
-  const beginTime = 1 //d.getTime(); // time in milliseconds
+  const beginTime = 1 // = Math.round(Date.now() / 1000) // time in milliseconds
 
   const signedTime = EthCrypto.sign(
     car.privateKey,
     EthCrypto.hash.keccak256(beginTime),
   )
 
+  const seconds = Math.round(Date.now() / 1000)
+
   // ATrenter cid that is used to retrieve it from IPFS
   let cid = 'QmQL6Tb4bTEvAbm8fNbAeeUk9X7MYmae4APShqHNhd3A5c'
+
   switch (n) {
     case 1:
       // --------------------------------------------------------Car and Renter Registration---------------------------------------------------------------------
@@ -125,7 +124,7 @@ async function logic(n) {
         )
         .send({
           from: owner.address,
-          value: '100000000000000',
+          value: '1000000000000000000', // 1 ether
           gas: 3000000,
         })
 
@@ -144,16 +143,18 @@ async function logic(n) {
         )
         .send({
           from: renter.address,
-          value: '100000000000000',
+          value: '1000000000000000000', // 1 ether
           gas: 3000000,
         })
       break
     case 2:
       // ------------------------------------------------------Owner stores on chain the access token-----------------------------------------------
-      await contract.methods.setAccessToken(carId, cid, renter.address).send({
-        from: owner.address,
-        gas: 3000000,
-      })
+      await contract.methods
+        .setAccessToken(carId, cid, renter.address, 10)
+        .send({
+          from: owner.address,
+          gas: 3000000,
+        })
 
       // //console.log('ATrenter is: ', ATrenter)
       let fromBCtoken = await contract.methods.getAccessToken(carId).call()
@@ -173,9 +174,9 @@ async function logic(n) {
     case 3:
       // --------------------------------------------------------Car functions-------------------------------------------
       // 1. Car decrypts the ATcar that received from renter through close range communication
-      const ecryptedATcar = EthCrypto.cipher.stringify(ATcar)
-      console.log(ecryptedATcar)
-      const encrypedObjectcar = EthCrypto.cipher.parse(ecryptedATcar)
+      // const ecryptedATcar = EthCrypto.cipher.stringify(ATcar)
+      // console.log(ecryptedATcar)
+      // const encrypedObjectcar = EthCrypto.cipher.parse(ecryptedATcar)
 
       const decryptedATcar = await EthCrypto.decryptWithPrivateKey(
         car.privateKey,
@@ -207,7 +208,7 @@ async function logic(n) {
       const vrsBeginTime = EthCrypto.vrs.fromString(signedTime)
 
       if (signerIsCar == car.address) {
-        console.log('Car signed the BD')
+        console.log('Car signed the begin time')
 
         await contract.methods
           .beginBooking(
@@ -223,7 +224,7 @@ async function logic(n) {
             gas: 3000000,
           })
       } else {
-        console.log('Car DIDNT sign the BD')
+        console.log('Car DIDNT sign the begin time')
       }
       break
     case 5:
@@ -237,7 +238,7 @@ async function logic(n) {
     case 6:
       // -----------------------------------------Renter ends booking------------------------------------------------------------------------------------------
       // In a normal booking, the renter expresses his desire to end the booking to the car
-      let endTime = 5 //d.getTime(); // time in milliseconds
+      let endTime = 5 //= Math.round(Date.now() / 1000) // time in secs
 
       const signedEndTime = EthCrypto.sign(
         car.privateKey,
@@ -282,11 +283,18 @@ async function logic(n) {
         gas: 300000,
       })
       break
-    default:
-      console.log('No case selected')
     case 9:
       var time = await contract.methods.getTime(carId).call()
       console.log(time)
+      break
+    case 10:
+      await contract.methods.withdrawMoneyToRenter().send({
+        from: renter.address,
+        gas: 300000,
+      })
+      break
+    default:
+      console.log('No case selected')
   }
 }
 
@@ -300,6 +308,6 @@ async function main() {
    * 7: cancel booking
    * 8: withdraw
    */
-  logic(6).catch(console.error)
+  logic(10).catch(console.error)
 }
 main().catch(console.error)
