@@ -27,9 +27,10 @@ module.exports = {
     },
   },
 };
-
+```
 
 ## Configuration
+
 Ganache provides public and private keys together with addresses.
 Create a .env file and place all the secret information such as keys and connection URLs in that file. For example:
 
@@ -40,8 +41,7 @@ GANACHE_PROVIDER_PKEY = <<private key>>
 GANACHE_OWNER_PKEY = <<private key>>
 GANACHE_RENTER_PKEY = <<private key>>
 
-````
-
+```
 
 # How to run
 
@@ -49,7 +49,7 @@ In order to deploy the contract to ganache:
 
 ```bash
 make deploy-ganache
-````
+```
 
 The deploy logs are saved in build/logs folder
 
