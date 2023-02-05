@@ -168,7 +168,6 @@ contract CarGo {
     }
 
     function withdrawMoneyToRenter() external {
-        require(msg.sender == renterAddress[msg.sender], "YOU ARE NOT THE RENTER");
         require(
             renterOccupied[msg.sender] == false,
             "CANT WITHDRAW WHEN RENTER IS STILL DRIVING"
